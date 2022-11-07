@@ -8,13 +8,15 @@ import (
 	"github.com/dgrijalva/jwt-go"
 )
 
+// Please modify sal
+const sal = "12345678901234567890"
+
 // GetToken make Token
 func GetToken(identity string, exp int) (*string, error) {
 	claims := make(jwt.MapClaims)
 	claims["Identity"] = identity
 	claims["exp"] = time.Now().Add(time.Hour * time.Duration(exp)).Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims) // TODO: viper Signing Method
-	sal := "TJVA95OrM4E2cBab30RMHrRD1EfxjoYZge2ONFh7Hg4"       // TODO: viper
 	tokenString, err := token.SignedString([]byte(sal))
 	if err != nil {
 		log.Println(err)
@@ -32,7 +34,6 @@ func CheckToken(key string) bool {
 		return false
 	}
 	tokenString := kv[1]
-	sal := "TJVA95OrM4E2cBab30RMHrRD1EfxjoYZge2ONFh7Hg4" // TODO: viper
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		return []byte(sal), nil
 	})
