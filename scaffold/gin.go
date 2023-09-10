@@ -1,19 +1,19 @@
-package curd
+package scaffold
 
 import (
+	"gorm.io/gorm"
 	"log"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
-	"gorm.io/gorm"
 )
 
-// ScaffoldList .
-func ScaffoldList[T any](db *gorm.DB, obs []*T) gin.HandlerFunc {
+// List .
+func List[T any](db *gorm.DB, ob []*T) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
-		err := db.Order("id").Find(&obs).Error
+		resp, err := IList(db, ob)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"code": 404,
@@ -22,24 +22,15 @@ func ScaffoldList[T any](db *gorm.DB, obs []*T) gin.HandlerFunc {
 			})
 			return
 		}
-		c.JSON(http.StatusOK, obs)
+		c.JSON(http.StatusOK, resp)
 	}
 }
 
-// ScaffoldListWhitChildren .
-func ScaffoldListWhitChildren[T any](db *gorm.DB, obs []*T, level int) gin.HandlerFunc {
+// ListByOrder .
+func ListByOrder[T any](db *gorm.DB, ob []*T) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
-		// resp, err := IListWithChildren(ob, level)
-		if level < 1 {
-			level = 1
-		}
-		preload := "Children"
-		for l := 1; l < level; l++ {
-			preload += ".Children"
-		}
-		err := db.Preload(preload).Find(&obs).Error
-
+		resp, err := IListByOrder(db, ob)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"code": 404,
@@ -48,17 +39,33 @@ func ScaffoldListWhitChildren[T any](db *gorm.DB, obs []*T, level int) gin.Handl
 			})
 			return
 		}
-		c.JSON(http.StatusOK, obs)
+		c.JSON(http.StatusOK, resp)
 	}
 }
 
-// ScaffoldFindByID .
-func ScaffoldFindByID[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
+// ListWhitChildren .
+func ListWhitChildren[T any](db *gorm.DB, ob []*T, level int) gin.HandlerFunc {
+
+	return func(c *gin.Context) {
+		resp, err := IListWithChildren(db, ob, level)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"code": 404,
+				"data": "",
+				"msg":  err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, resp)
+	}
+}
+
+// FindByID .
+func FindByID[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		err := db.Where("id = ?", id).First(&ob).Error
-
+		resp, err := IFindByID(db, ob, id)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"code": 404,
@@ -67,17 +74,17 @@ func ScaffoldFindByID[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
 			})
 			return
 		}
-		c.JSON(http.StatusOK, ob)
+		c.JSON(http.StatusOK, resp)
 	}
 }
 
-// ScaffoldUpdate .
-func ScaffoldUpdate[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
+// Update .
+func Update[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		if err := c.ShouldBindBodyWith(ob, binding.JSON); err == nil {
-			if errDb := db.Save(&ob).Error; errDb == nil {
-				c.JSON(http.StatusOK, ob)
+			if s, errDb := IUpdate(db, ob); errDb == nil {
+				c.JSON(http.StatusOK, s)
 				return
 			} else {
 				log.Println("Update error: ", err)
@@ -99,13 +106,13 @@ func ScaffoldUpdate[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
 	}
 }
 
-// ScaffoldCreate .
-func ScaffoldCreate[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
+// Create .
+func Create[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
 
 	return func(c *gin.Context) {
 		if err := c.ShouldBindBodyWith(ob, binding.JSON); err == nil {
-			if errDb := db.Omit("id").Create(&ob).Error; errDb == nil {
-				c.JSON(http.StatusOK, ob)
+			if s, errDb := ICrerate(db, ob); errDb == nil {
+				c.JSON(http.StatusOK, s)
 				return
 			} else {
 				log.Println("Create error: ", errDb)
@@ -127,17 +134,16 @@ func ScaffoldCreate[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
 	}
 }
 
-// ScaffoldRemove .
-func ScaffoldRemove[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
+// Remove .
+func Remove[T any](db *gorm.DB, ob *T) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		id := c.Param("id")
-		// res, err := IRemove(ob, id)
-		err := db.Delete(ob, id).Error
+		res, err := IRemove(db, ob, id)
 		if err != nil {
 			log.Println(err)
-			c.JSON(http.StatusBadRequest, err)
+			c.JSON(http.StatusBadRequest, res)
 			return
 		}
-		c.JSON(http.StatusOK, gin.H{"msg": "Deleted successfully!"})
+		c.JSON(http.StatusOK, res)
 	}
 }

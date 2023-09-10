@@ -7,7 +7,14 @@ import (
 	"github.com/mojocn/base64Captcha"
 )
 
-// Response format
+// Captcha .
+type Captcha struct{}
+
+func NewCaptcha() *Captcha {
+	return &Captcha{}
+}
+
+// CaptchaResponse Response format
 type CaptchaResponse struct {
 	Id   string      `json:"id"`
 	Code int         `json:"code"`
@@ -22,7 +29,7 @@ func (r *CaptchaResponse) MakeGinResponse() gin.H {
 	return gin.H{"code": r.Code, "data": r.Data, "msg": r.Msg, "id": r.Id}
 }
 
-func CaptchaHandle(c *gin.Context) {
+func (ca *Captcha) GinHandle(c *gin.Context) {
 
 	res := new(CaptchaResponse)
 

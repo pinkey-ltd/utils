@@ -1,4 +1,4 @@
-package curd
+package scaffold
 
 import "gorm.io/gorm"
 
@@ -33,7 +33,13 @@ func IRemove[T any](db *gorm.DB, ob *T, ids ...interface{}) (*Msg, error) {
 
 // IList .
 func IList[T any](db *gorm.DB, obs []*T) ([]*T, error) {
-	err := db.Order("id").Find(&obs).Error
+	err := db.Find(&obs).Error
+	return obs, err
+}
+
+// IListByOrder .
+func IListByOrder[T any](db *gorm.DB, obs []*T) ([]*T, error) {
+	err := db.Order("\"order\"").Find(&obs).Error
 	return obs, err
 }
 
@@ -46,7 +52,7 @@ func IListWithChildren[T any](db *gorm.DB, obs []*T, level int) ([]*T, error) {
 	for l := 1; l < level; l++ {
 		preload += ".Children"
 	}
-	err := db.Preload(preload).Find(&obs).Error
+	err := db.Order("\"order\"").Preload(preload).Where("id =1").Find(&obs).Error
 	return obs, err
 }
 
