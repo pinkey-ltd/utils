@@ -1,23 +1,30 @@
 package utils
 
 import (
+	"fmt"
 	"log"
+	"net/http"
 	"strings"
 	"time"
 
-	"github.com/dgrijalva/jwt-go"
+	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 )
 
-// Please modify sal
-const sal = "12345678901234567890"
+// hash defaultSal
+const (
+	defaultSal = "abcdefghijklmnopqrstuvwxyz"
+)
 
 // GetToken make Token
-func GetToken(identity string, exp int) (*string, error) {
+func GetToken(identity string) (*string, error) {
 	claims := make(jwt.MapClaims)
 	claims["Identity"] = identity
+	// exp default 18 hour config from system setting
+	exp := 18
 	claims["exp"] = time.Now().Add(time.Hour * time.Duration(exp)).Unix()
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims) // TODO: viper Signing Method
-	tokenString, err := token.SignedString([]byte(sal))
+	token := jwt.NewWithClaims(jwt.SigningMethodHS512, claims)
+	tokenString, err := token.SignedString([]byte(defaultSal))
 	if err != nil {
 		log.Println(err)
 		return nil, err
@@ -35,29 +42,52 @@ func CheckToken(key string) bool {
 	}
 	tokenString := kv[1]
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return []byte(sal), nil
-	})
-	if err != nil {
-		log.Println("Parse token:", err)
-		if ve, ok := err.(*jwt.ValidationError); ok {
-			if ve.Errors&jwt.ValidationErrorMalformed != 0 {
-				// That's not even a token
-				return false
-			} else if ve.Errors&(jwt.ValidationErrorExpired|jwt.ValidationErrorNotValidYet) != 0 {
-				// Token is either expired or not active yet
-				return false
-			} else {
-				// Couldn't handle this token
-				return false
-			}
-		} else {
-			// Couldn't handle this token
-			return false
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
+		return []byte(defaultSal), nil
+	})
+	if _, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+		return true
+	} else {
+		log.Println("Token invalid:", err)
 	}
-	if !token.Valid {
-		log.Println("Token invalid:", tokenString)
-		return false
+	return false
+}
+
+// JWTAuthMiddleware MiddleWare
+func JWTAuthMiddleware() func(c *gin.Context) {
+	return func(c *gin.Context) {
+		authHeader := c.Request.Header.Get("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusOK, gin.H{
+				"code": 401,
+				"data": "",
+				"msg":  "Authorization failed",
+			})
+			c.Abort()
+			return
+		}
+		parts := strings.SplitN(authHeader, " ", 2)
+		if !(len(parts) == 2 && parts[0] == "Bearer") {
+			c.JSON(http.StatusOK, gin.H{
+				"code": 401,
+				"data": "",
+				"msg":  "Authorization failed",
+			})
+			c.Abort()
+			return
+		}
+
+		if !CheckToken(authHeader) {
+			c.JSON(http.StatusOK, gin.H{
+				"code": 401,
+				"data": "",
+				"msg":  "Authorization failed",
+			})
+			c.Abort()
+			return
+		}
+		c.Next()
 	}
-	return true
 }
