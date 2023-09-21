@@ -1,7 +1,6 @@
 package captcha
 
 import (
-	"github.com/google/wire"
 	"github.com/mojocn/base64Captcha"
 )
 
@@ -23,5 +22,3 @@ func NewStore(cnf *Config) (*base64Captcha.Store, error) {
 		return &base64Captcha.DefaultMemStore, nil
 	}
 }
-
-var StoreSet = wire.NewSet(NewStore)
